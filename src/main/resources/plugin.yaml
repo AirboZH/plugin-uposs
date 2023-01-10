@@ -1,23 +1,19 @@
 apiVersion: plugin.halo.run/v1alpha1
 kind: Plugin
 metadata:
-  # The name defines how the plugin is invoked,A unique name
-  name: PluginStarter
+  name: PluginUPOSS
 spec:
   enabled: true
-  # 'version' is a valid semantic version string (see semver.org).
-  version: 1.0.0-SNAPSHOT
-  requires: "*"
+  version: 0.5.0
+  requires: ">=2.0.0"
   author:
-    name: Halo OSS Team
-    website: https://github.com/halo-dev
-  logo: https://halo.run/logo
-  settingName: starter-settings
-  configMapName: starter-settings
-  # 'homepage' usually links to the GitHub repository of the plugin
-  homepage: https://github.com/halo-dev/plugin-starter
-  # 'displayName' explains what the plugin does in only a few words
-  displayName: "插件快速开始模板"
-  description: "这是一个插件快速开始模板"
+    name: AirboZH
+    website: https://github.com/airbozh
+  logo: https://avatars.githubusercontent.com/u/2289805?s=200&v=4
+  settingName: uposs-settings
+  configMapName: uposs-configMap
+  homepage: https://github.com/AirboZH/plugin-uposs
+  displayName: "又拍云 OSS"
+  description: "提供又拍云 OSS 的存储策略"
   license:
-    - name: "MIT"
+    - name: "GPL-3.0"

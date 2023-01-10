@@ -1,0 +1,44 @@
+apiVersion: storage.halo.run/v1alpha1
+kind: PolicyTemplate
+metadata:
+  name: uposs
+spec:
+  displayName: UPyun OSS
+  settingName: uposs-policy-template-setting
+---
+apiVersion: v1alpha1
+kind: Setting
+metadata:
+  name: uposs-policy-template-setting
+spec:
+  forms:
+    - group: default
+      formSchema:
+        - $formkit: select
+          name: protocol
+          label: 绑定域名协议
+          options:
+            - label: HTTPS
+              value: https
+            - label: HTTP
+              value: http
+        - $formkit: text
+          name: domain
+          label: 绑定域名
+          validation: required
+        - $formkit: text
+          name: bucket
+          label: 空间名称
+          validation: required
+        - $formkit: text
+          name: operator_name
+          label: 操作员名称
+          validation: required
+        - $formkit: password
+          name: operator_password
+          label: 操作员密码
+          validation: required
+        - $formkit: text
+          name: location
+          label: 上传目录
+          placeholder: 如不填写，则默认上传到根目录
