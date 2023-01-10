@@ -1,0 +1,13 @@
+apiVersion: v1alpha1
+kind: Setting
+metadata:
+  name: uposs-settings
+spec:
+  forms:
+    - group: basic
+      label: 基本设置
+      formSchema:
+        - $formkit: text
+          help: 请在“附件 - 存储策略” 添加策略
+          label: 请在“附件 - 存储策略” 添加策略
+          placeholder: 请在“附件 - 存储策略” 添加策略
