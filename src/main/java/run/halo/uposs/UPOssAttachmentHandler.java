@@ -43,9 +43,34 @@ public class UPOssAttachmentHandler implements AttachmentHandler {
     }
 
     @Override
-    public Mono<Attachment> delete(DeleteContext context) {
-        // TODO
-        return null;
+    public Mono<Attachment> delete(DeleteContext deleteContext) {
+        return Mono.just(deleteContext).filter(context -> this.shouldHandle(context.policy()))
+            .doOnNext(context -> {
+                var annotations = context.attachment().getMetadata().getAnnotations();
+                if (annotations == null || !annotations.containsKey(OBJECT_KEY)) {
+                    return;
+                }
+                var objectName = annotations.get(OBJECT_KEY);
+                var properties = getProperties(deleteContext.configMap());
+                var client = getManager(properties);
+                var location = properties.getLocation();
+
+                log.info("{}/{} is being deleted from UPYunOSS", location,
+                    objectName);
+
+                try {
+                    var res = client.deleteFile(location + "/" + objectName, null);
+                    log.info("UPYun response: {}", res);
+                    if (!res.isSuccessful()) {
+                        return;
+                    }
+                } catch (IOException | UpException e) {
+                    throw new RuntimeException(e);
+                }
+
+                log.info("{}/{} was deleted successfully from UPYunOSS", location,
+                    objectName);
+            }).map(DeleteContext::attachment);
     }
 
     UPOssProperties getProperties(ConfigMap configMap) {
