@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.pf4j.Extension;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.MediaTypeFactory;
+import org.springframework.util.MimeType;
 import org.springframework.web.util.UriUtils;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -113,7 +114,8 @@ public class UPOssAttachmentHandler implements AttachmentHandler {
         var client = this.getManager(properties);
         var filename = uploadContext.file().filename();
         var location = properties.getLocation();
-        var contentType = MediaTypeFactory.getMediaType(filename);
+        var contentTypeOption = MediaTypeFactory.getMediaType(filename);
+        String contentType = contentTypeOption.map(MimeType::toString).orElse("Unknown");
         log.info("UPYun properties: filename: {}, location: {}, contentType: {}", filename,
             location, contentType);
 
@@ -144,7 +146,7 @@ public class UPOssAttachmentHandler implements AttachmentHandler {
                 in2.close();
 
                 if (res.isSuccessful()) {
-                    return new ObjectDetail(location, filename, contentType.toString(),
+                    return new ObjectDetail(location, filename, contentType,
                         contentLength);
                 } else if (res.code() == 401) {
                     throw new RuntimeException("UPYun Authentication Failed");
