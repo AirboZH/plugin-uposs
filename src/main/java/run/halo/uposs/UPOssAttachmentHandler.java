@@ -6,17 +6,19 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.SequenceInputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.pf4j.Extension;
-import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.MediaTypeFactory;
 import org.springframework.web.util.UriUtils;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import run.halo.app.core.extension.attachment.Attachment;
 import run.halo.app.core.extension.attachment.Constant;
 import run.halo.app.core.extension.attachment.Policy;
@@ -108,32 +110,51 @@ public class UPOssAttachmentHandler implements AttachmentHandler {
     }
 
     private Mono<ObjectDetail> upload(UploadContext uploadContext, UPOssProperties properties) {
-        var client = getManager(properties);
+        var client = this.getManager(properties);
         var filename = uploadContext.file().filename();
         var location = properties.getLocation();
-        var bufferFlux = uploadContext.file().content();
-        log.info("UPYun properties: filename: {},location: {}", filename, location);
-        return bufferFlux
-            .map(DataBuffer::asInputStream).reduce(SequenceInputStream::new)
-            .flatMap(inputStream -> {
-                var byteArrayOutputStream = cloneInputStream(inputStream);
-                var contentType = MediaTypeFactory.getMediaType(filename);
-                var ins = new ByteArrayInputStream(byteArrayOutputStream.toByteArray());
-                var contentLength = byteArrayOutputStream.size();
+        var contentType = MediaTypeFactory.getMediaType(filename);
+        log.info("UPYun properties: filename: {}, location: {}, contentType: {}", filename,
+            location, contentType);
+
+        return Mono.fromCallable(() -> {
+            PipedOutputStream pos = new PipedOutputStream();
+            PipedInputStream pis = new PipedInputStream(pos);
+            DataBufferUtils.write(uploadContext.file().content(), pos)
+                .subscribeOn(Schedulers.boundedElastic()).doOnComplete(() -> {
+                    try {
+                        pos.close();
+                    } catch (IOException ioe) {
+                        log.warn("Failed to close output stream", ioe);
+                    }
+
+                }).subscribe(DataBufferUtils.releaseConsumer());
+            ByteArrayOutputStream outputStream = this.cloneInputStream(pis);
+            if (outputStream != null) {
+                InputStream in1 = new ByteArrayInputStream(outputStream.toByteArray());
+                InputStream in2 = new ByteArrayInputStream(outputStream.toByteArray());
+                int contentLength = in1.readAllBytes().length;
+                in1.close();
 
                 Map<String, String> params = new HashMap<>();
                 params.put("Content-Length", String.valueOf(contentLength));
 
-                try {
-                    var res = client.writeFile(location + "/" + filename, ins, params);
-                    log.info("UPYun response: {}", res);
-                } catch (IOException | UpException e) {
-                    return Mono.error(new RuntimeException(e));
-                }
-                return Mono.justOrEmpty(
-                    new ObjectDetail(location, filename, contentType.toString(), contentLength));
-            });
+                var res = client.writeFile(location + "/" + filename, in2, params);
+                log.info("UPYunOss Response: {}", res);
+                in2.close();
 
+                if (res.isSuccessful()) {
+                    return new ObjectDetail(location, filename, contentType.toString(),
+                        contentLength);
+                } else if (res.code() == 401) {
+                    throw new RuntimeException("UPYun Authentication Failed");
+                } else {
+                    throw new RuntimeException("Upload Failed");
+                }
+            } else {
+                throw new RuntimeException("CloneInputStream is Null");
+            }
+        }).subscribeOn(Schedulers.boundedElastic());
     }
 
 
